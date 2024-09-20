@@ -1,44 +1,42 @@
+import os
 from flask import jsonify
 from marshmallow.exceptions import ValidationError
 from core import app
-from core.apis.assignments import student_assignments_resources, teacher_assignments_resources
+from core.apis.assignments import (
+    student_assignments_resources,
+    teacher_assignments_resources,
+    principal_assignments_resources,
+)
 from core.libs import helpers
 from core.libs.exceptions import FyleError
 from werkzeug.exceptions import HTTPException
-
 from sqlalchemy.exc import IntegrityError
 
-app.register_blueprint(student_assignments_resources, url_prefix='/student')
-app.register_blueprint(teacher_assignments_resources, url_prefix='/teacher')
-
+# Register blueprints
+for resource, prefix in zip(
+    [student_assignments_resources, teacher_assignments_resources, principal_assignments_resources],
+    ['/student', '/teacher', '/principal']
+):
+    app.register_blueprint(resource, url_prefix=prefix)
 
 @app.route('/')
 def ready():
-    response = jsonify({
-        'status': 'ready',
-        'time': helpers.get_utc_now()
-    })
-
-    return response
-
+    return jsonify({'status': 'ready', 'time': helpers.get_utc_now()})
 
 @app.errorhandler(Exception)
 def handle_error(err):
-    if isinstance(err, FyleError):
-        return jsonify(
-            error=err.__class__.__name__, message=err.message
-        ), err.status_code
-    elif isinstance(err, ValidationError):
-        return jsonify(
-            error=err.__class__.__name__, message=err.messages
-        ), 400
-    elif isinstance(err, IntegrityError):
-        return jsonify(
-            error=err.__class__.__name__, message=str(err.orig)
-        ), 400
-    elif isinstance(err, HTTPException):
-        return jsonify(
-            error=err.__class__.__name__, message=str(err)
-        ), err.code
+    error_response = {
+        FyleError: lambda: (jsonify(error=err.__class__.__name__, message=err.message), err.status_code),
+        ValidationError: lambda: (jsonify(error=err.__class__.__name__, message=err.messages), 400),
+        IntegrityError: lambda: (jsonify(error=err.__class__.__name__, message=str(err.orig)), 400),
+        HTTPException: lambda: (jsonify(error=err.__class__.__name__, message=str(err)), err.code)
+    }
+    
+    response = error_response.get(type(err), lambda: None)()
+    if response:
+        return response
 
     raise err
+
+if __name__ == '__main__':
+    app.run(debug=True)

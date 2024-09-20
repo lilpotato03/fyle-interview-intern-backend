@@ -1,3 +1,4 @@
+import json
 def test_get_assignments_student_1(client, h_student_1):
     response = client.get(
         '/student/assignments',
@@ -62,9 +63,9 @@ def test_submit_assignment_student_1(client, h_student_1):
         '/student/assignments/submit',
         headers=h_student_1,
         json={
-            'id': 2,
+            'id':2,
             'teacher_id': 2
-        })
+    })
 
     assert response.status_code == 200
 
@@ -86,3 +87,10 @@ def test_assignment_resubmit_error(client, h_student_1):
     assert response.status_code == 400
     assert error_response['error'] == 'FyleError'
     assert error_response["message"] == 'only a draft assignment can be submitted'
+
+# def test_get_assignments_no_assignments(client, h_student_1):
+#     response = client.get('/student/assignments', headers=h_student_1)
+
+#     assert response.status_code == 200
+#     data = response.json['data']
+#     assert data == [] 
